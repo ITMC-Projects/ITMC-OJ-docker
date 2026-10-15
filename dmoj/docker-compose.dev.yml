@@ -23,6 +23,10 @@ services:
     env_file: [../.env]
     environment:
       DEBUG: '${DEBUG:-1}'
+  beat:
+    env_file: [../.env]
+    environment:
+      DEBUG: '${DEBUG:-1}'
   wsevent:
     env_file: [../.env]
 volumes:

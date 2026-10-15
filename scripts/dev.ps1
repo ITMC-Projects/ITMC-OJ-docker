@@ -110,12 +110,12 @@ Judge worker is external; this repository only includes the bridge.
             Build-Dev
             Migrate-Dev
             Build-Static
-            Invoke-Compose up -d site celery bridged wsevent nginx
+            Invoke-Compose up -d site celery beat bridged wsevent nginx
             Write-Output 'Website: http://localhost/ . Create an admin with: make superuser'
         }
-        up { Invoke-Compose up -d site celery bridged wsevent nginx }
+        up { Invoke-Compose up -d site celery beat bridged wsevent nginx }
         down { Invoke-Compose down }
-        restart { Invoke-Compose restart site celery bridged wsevent }
+        restart { Invoke-Compose restart site celery beat bridged wsevent }
         logs { Invoke-Compose logs --follow --tail 100 @ExtraArgs }
         ps { Invoke-Compose ps }
         migrate { Migrate-Dev }

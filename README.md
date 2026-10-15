@@ -11,6 +11,10 @@ new values. Root `.env` overrides `dmoj/environment/site.env` for application
 containers; database credentials remain in `dmoj/environment/mysql*.env`.
 The root `.env` is ignored by Git. See `.env.example` for supported defaults.
 
+Set `OTS_SYNC_AUTO_ENABLED=1` for automatic OTS account sync every 30 seconds.
+`make up` / `make dev` start the worker and a single Celery Beat scheduler.
+An active sync skips the next tick; unchanged passwords preserve login sessions.
+
 Manual OTS account synchronization: see the [configuration and recovery guide](dmoj/repo/docs/OTS_ACCOUNT_SYNC.md).
 
 ## Development on Windows
