@@ -1,4 +1,4 @@
 [submodule "dmoj/repo"]
 	path = dmoj/repo
-	url = https://github.com/itmc-ptit/OJ
+	url = https://github.com/ITMC-Projects/OJ
 	branch = master
