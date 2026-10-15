@@ -9,9 +9,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $ProjectRoot = Split-Path $PSScriptRoot -Parent
 $DmojRoot = Join-Path $ProjectRoot 'dmoj'
+$RootEnv = Join-Path $ProjectRoot '.env'
 
 function Invoke-Compose {
-    & docker compose --project-directory $DmojRoot -f "$DmojRoot/docker-compose.yml" -f "$DmojRoot/docker-compose.dev.yml" @args
+    & docker compose --env-file $RootEnv --project-directory $DmojRoot -f "$DmojRoot/docker-compose.yml" -f "$DmojRoot/docker-compose.dev.yml" @args
     if ($LASTEXITCODE -ne 0) { throw "Docker Compose failed (exit $LASTEXITCODE)." }
 }
 
@@ -39,6 +40,18 @@ function Initialize-Dev {
             $Content = $Content.Replace('<password>', $Secret).Replace('<secret key>', $Secret)
             [IO.File]::WriteAllText($Destination, $Content, (New-Object Text.UTF8Encoding($false)))
         }
+    }
+    if (-not (Test-Path -LiteralPath $RootEnv)) {
+        # Preserve the existing Django secret and site configuration on upgrade.
+        $Content = [IO.File]::ReadAllText("$DmojRoot/environment/site.env")
+        $Content = [regex]::Replace($Content, '(?m)^DEBUG=.*$', 'DEBUG=1')
+        foreach ($Line in [IO.File]::ReadAllLines((Join-Path $ProjectRoot '.env.example'))) {
+            if ($Line -match '^([A-Z][A-Z0-9_]*)=') {
+                $Key = $Matches[1]
+                if ($Content -notmatch "(?m)^$Key=") { $Content = $Content.TrimEnd() + "`n$Line`n" }
+            }
+        }
+        [IO.File]::WriteAllText($RootEnv, $Content, (New-Object Text.UTF8Encoding($false)))
     }
 }
 
@@ -82,6 +95,7 @@ make manage ARGS="check"   Run a Django management command
 make check      Validate Compose and run Django checks
 
 Requires GNU Make, PowerShell and Docker Desktop using Linux containers.
+Local overrides: edit .env at the repository root, then run make dev or make up.
 Website: http://localhost/  |  Judge connection: localhost:9999
 Judge worker is external; this repository only includes the bridge.
 '@

@@ -4,6 +4,15 @@ This repository contains the Docker files to run the [VNOJ](https://github.com/V
 
 Based on [dmoj-docker](https://github.com/Ninjaclasher/dmoj-docker).
 
+Development reads `.env` at this repository root. `make init` / `make dev`
+create it if missing, preserving the existing Django secret and site settings.
+Edit `.env`, then run `make up` or `make dev` to recreate containers with the
+new values. Root `.env` overrides `dmoj/environment/site.env` for application
+containers; database credentials remain in `dmoj/environment/mysql*.env`.
+The root `.env` is ignored by Git. See `.env.example` for supported defaults.
+
+Manual OTS account synchronization: see the [configuration and recovery guide](dmoj/repo/docs/OTS_ACCOUNT_SYNC.md).
+
 ## Development on Windows
 
 Cần GNU Make, Windows PowerShell và Docker Desktop chạy Linux containers.

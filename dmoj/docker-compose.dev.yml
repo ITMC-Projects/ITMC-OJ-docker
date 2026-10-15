@@ -11,14 +11,19 @@ services:
     volumes:
       - dev_database:/var/lib/mysql/
   site:
+    env_file: [../.env]
     environment:
-      DEBUG: '1'
+      DEBUG: '${DEBUG:-1}'
     entrypoint: [uwsgi, --ini, uwsgi.ini, --py-autoreload, '1', --workers, '2']
   celery:
+    env_file: [../.env]
     environment:
-      DEBUG: '1'
+      DEBUG: '${DEBUG:-1}'
   bridged:
+    env_file: [../.env]
     environment:
-      DEBUG: '1'
+      DEBUG: '${DEBUG:-1}'
+  wsevent:
+    env_file: [../.env]
 volumes:
   dev_database:
