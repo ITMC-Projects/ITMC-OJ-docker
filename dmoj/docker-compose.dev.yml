@@ -1,0 +1,24 @@
+# Windows dev: keep MariaDB data inside Docker's Linux filesystem.
+services:
+  db:
+    healthcheck:
+      # mysql.env sets MYSQL_HOST=db for Django. The healthcheck account
+      # only allows local connections, so override it for this process.
+      test: [CMD, env, MYSQL_HOST=localhost, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+    volumes:
+      - dev_database:/var/lib/mysql/
+  site:
+    environment:
+      DEBUG: '1'
+    entrypoint: [uwsgi, --ini, uwsgi.ini, --py-autoreload, '1', --workers, '2']
+  celery:
+    environment:
+      DEBUG: '1'
+  bridged:
+    environment:
+      DEBUG: '1'
+volumes:
+  dev_database:

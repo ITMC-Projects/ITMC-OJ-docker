@@ -4,6 +4,49 @@ This repository contains the Docker files to run the [VNOJ](https://github.com/V
 
 Based on [dmoj-docker](https://github.com/Ninjaclasher/dmoj-docker).
 
+## Development on Windows
+
+Cần GNU Make, Windows PowerShell và Docker Desktop chạy Linux containers.
+Chạy tại thư mục gốc repository, trong PowerShell:
+
+```powershell
+make dev
+make seed
+make superuser
+```
+
+Truy cập http://localhost/. `make dev` tạo cấu hình còn thiếu,
+build base trước các image ứng dụng, đợi database sẵn sàng,
+migrate, tạo static assets rồi bật web, Celery, bridge và WebSocket.
+Cấu hình đã tồn tại được giữ nguyên; secret mới được sinh ngẫu nhiên.
+`make seed` chỉ cần chạy lần đầu, nạp navbar và danh sách ngôn ngữ.
+Không tự nạp demo có tài khoản `admin/admin`.
+
+```powershell
+make logs SERVICE=site
+make manage ARGS="check"
+make static
+make restart
+make down
+make up
+```
+
+Python của web tự reload khi sửa source. Chạy `make restart` khi sửa
+Celery, bridge hoặc WebSocket; chạy `make static` khi sửa CSS/static.
+Dependency thay đổi thì chạy lại `make dev`. `make help` liệt kê các lệnh.
+Không cần Bash hoặc Python trên Windows; tác vụ Linux chạy trong container.
+Cũng có thể gọi trực tiếp `powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 dev`.
+
+MariaDB dev dùng named volume `dev_database`, tách khỏi `dmoj/database/`.
+`make down` giữ dữ liệu. Dùng các target Makefile nhất quán để luôn áp dụng
+`docker-compose.dev.yml`; `docker compose` mặc định không áp dụng file này.
+
+**Chấm bài:** repository chưa chứa judge worker. Cần kết nối judge bên ngoài
+tới cổng `9999`, đăng ký judge với key tương ứng trên trang quản trị,
+và cung cấp problem data/runtime cho judge. Makefile bật bridge nhưng chưa
+thể tự chấm submission khi thiếu worker. Email hiện dùng dummy backend;
+OAuth và các tích hợp bên ngoài cần cấu hình riêng trong `local_settings.py`.
+
 ## Installation
 
 First, [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/) must be installed. Installation instructions can be found on their respective websites.
