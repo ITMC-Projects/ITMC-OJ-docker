@@ -366,6 +366,11 @@ for _name in ('MYSQL_PASSWORD', 'MYSQL_DATABASE', 'MYSQL_USER', 'MYSQL_HOST',
     _required(_name)
 if len(_required('OTS_SYNC_SERVICE_TOKEN')) < 32:
     raise ImproperlyConfigured('OTS_SYNC_SERVICE_TOKEN requires 32 characters')
+_password_tokens = [_required(v) for v in ('OTS_PASSWORD_SERVICE_TOKEN', 'OTS_CREDENTIAL_READ_TOKEN', 'OTS_CALLBACK_TOKEN')]
+if any(len(v) < 32 or any(c.isspace() for c in v) for v in _password_tokens) or len(set(_password_tokens + [_required('OTS_SYNC_SERVICE_TOKEN')])) != 4:
+    raise ImproperlyConfigured('Password service tokens require distinct secrets of at least 32 characters')
+if urlsplit(_required('OTS_PASSWORD_API_URL')).scheme != 'https':
+    raise ImproperlyConfigured('Password API requires HTTPS')
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_SSL_REDIRECT = True
 SESSION_COOKIE_SECURE = True

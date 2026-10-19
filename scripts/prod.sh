@@ -20,7 +20,7 @@ init() {
     [[ -e "$file" ]] || cp "$file.example" "$file"
     chmod 600 "$file"
   done
-  for key in SECRET_KEY MYSQL_PASSWORD MYSQL_ROOT_PASSWORD OTS_SYNC_SERVICE_TOKEN; do
+  for key in SECRET_KEY MYSQL_PASSWORD MYSQL_ROOT_PASSWORD OTS_SYNC_SERVICE_TOKEN OTS_PASSWORD_SERVICE_TOKEN OTS_CREDENTIAL_READ_TOKEN OTS_CALLBACK_TOKEN; do
     case "$key" in
       MYSQL_PASSWORD) file="$P/env/mysql.env";;
       MYSQL_ROOT_PASSWORD) file="$P/env/mysql-admin.env";;

@@ -73,6 +73,16 @@ def validate(root):
     require(0 < float(values['OTS_SYNC_TIMEOUT_SECONDS']) <= 120, 'Invalid OTS timeout')
     require(1 <= int(values['OTS_SYNC_PAGE_SIZE']) <= 1000, 'Invalid OTS page size')
     require(values['OTS_SYNC_AUTO_ENABLED'] in ('0', '1'), 'Invalid OTS auto flag')
+    password_keys = ('OTS_PASSWORD_SERVICE_TOKEN', 'OTS_CREDENTIAL_READ_TOKEN', 'OTS_CALLBACK_TOKEN')
+    for key in password_keys:
+        token = values.get(key, '')
+        require(len(token) >= 32 and len(set(token)) >= 8 and not any(c.isspace() for c in token),
+                'Invalid password integration secret: ' + key)
+    require(len({values[k] for k in password_keys + ('OTS_SYNC_SERVICE_TOKEN',)}) == 4,
+            'Password service capabilities require distinct secrets')
+    require(urlsplit(values.get('OTS_PASSWORD_API_URL', '')).scheme == 'https', 'Password API requires HTTPS')
+    require(values.get('OTS_PASSWORD_CHANGE_ENABLED') in ('0', '1'), 'Invalid password change flag')
+    require(0 < float(values.get('OTS_PASSWORD_TIMEOUT_SECONDS', '0')) <= 10, 'Invalid password timeout')
     ipaddress.ip_address(values['JUDGE_BIND_IP'])
     for file in ('django/local_settings.py', 'uwsgi.ini', 'websocket/config.js', 'nginx/nginx.conf', 'nginx/default.conf'):
         require((root / 'config' / file).is_file(), 'Missing production config: ' + file)
