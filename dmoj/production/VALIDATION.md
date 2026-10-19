@@ -29,3 +29,27 @@ Linux VPS runtime and end-to-end login/admin/monitoring/OTS/WebSocket/judge grad
 `docker info` reports that the Docker Desktop Linux engine named pipe is absent.
 These are required staging checks before a live rollout; this record does not certify
 runtime or end-to-end acceptance.
+
+## Production bootstrap regression checks
+
+`make prod` now runs a read-only-mounted bootstrap script after migrate and before
+static/start, and checks the default registration language during prod-check.
+
+* `python3 scripts/test-production.py`: six tests pass, including the real Bash
+  deployment order with external commands mocked. Bootstrap failure prevents static
+  build and service start.
+* `python3 scripts/test-production-bootstrap.py`: seven tests pass using real Django
+  3.2.25 ORM, django-mptt 0.13.4 and an in-memory SQLite database. Source Language and
+  NavigationBar class definitions are loaded under an isolated test app; unrelated
+  OJ integrations/signals are not loaded. Tests cover empty database initialization,
+  existing primary keys/customizations, rerun idempotency, custom/missing defaults,
+  MPTT parent relationships and transaction rollback on an invalid menu fixture.
+  The source RegistrationView.get_initial method reproduces Language.DoesNotExist
+  before bootstrap and succeeds with CPP17 afterwards.
+* Bootstrap tests used a temporary Python 3.12 virtualenv with Django/MPTT dependencies;
+  application images and their Python 3.11 runtime were not changed. These isolated
+  tests do not certify complete Django 3.2/Python compatibility.
+* Bash syntax, Make dry-run, Compose merge and staged whitespace checks pass.
+
+Docker daemon remains unavailable. Full app/MariaDB migration, bootstrap with real
+signals/Redis, HTTP registration and image/container runtime still require VPS validation.

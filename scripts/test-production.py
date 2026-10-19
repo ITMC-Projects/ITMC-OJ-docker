@@ -30,6 +30,7 @@ class ProductionTests(unittest.TestCase):
         self.p = self.root / 'dmoj/production'
         shutil.copytree(PROD / 'env', self.p / 'env', ignore=shutil.ignore_patterns('*.env'))
         shutil.copytree(PROD / 'config', self.p / 'config')
+        shutil.copy(PROD / 'bootstrap.py', self.p / 'bootstrap.py')
         (self.root / 'scripts').mkdir()
         shutil.copy(ROOT / 'scripts/prod.sh', self.root / 'scripts/prod.sh')
         self.init()
@@ -155,6 +156,40 @@ class ProductionTests(unittest.TestCase):
             else:
                 with self.assertRaisesRegex(ValueError, 'Unsafe'):
                     validator.archive(file)
+
+    def test_prod_bootstraps_before_static_and_start_and_stops_on_failure(self):
+        # Mock only external commands to exercise the actual Bash orchestration.
+        (self.root / 'dmoj/repo').mkdir()
+        (self.root / 'dmoj/repo/manage.py').touch()
+        log = self.root / 'commands.log'
+        command = '''
+docker() {
+  printf '%s\\n' "$*" >> "$TEST_COMMAND_LOG"
+  if [[ "${TEST_FAIL_BOOTSTRAP:-0}" == 1 && "$*" == *"site /production-bootstrap.py" ]]; then return 23; fi
+}
+python3() { return 0; }
+export -f docker python3
+bash scripts/prod.sh prod
+'''
+        for fail in ('0', '1'):
+            log.write_text('')
+            env = dict(os.environ, TEST_COMMAND_LOG=log.as_posix(), TEST_FAIL_BOOTSTRAP=fail)
+            result = subprocess.run([BASH, '-c', command], cwd=self.root, env=env, capture_output=True)
+            lines = log.read_text().splitlines()
+            seed = next(i for i, line in enumerate(lines) if 'site /production-bootstrap.py' in line)
+            migration = next(i for i, line in enumerate(lines) if 'manage.py migrate --noinput' in line)
+            self.assertLess(migration, seed)
+            self.assertIn('/production-bootstrap.py:ro', lines[seed])
+            if fail == '1':
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(any('collectstatic' in line or 'up -d --no-build' in line for line in lines))
+            else:
+                self.assertEqual(result.returncode, 0, result.stderr.decode())
+                static = next(i for i, line in enumerate(lines) if 'collectstatic' in line)
+                start = next(i for i, line in enumerate(lines) if 'up -d --no-build' in line)
+                self.assertLess(seed, static)
+                self.assertLess(static, start)
+                self.assertTrue(any('site /production-bootstrap.py --check' in line for line in lines))
 
 
 if __name__ == '__main__':

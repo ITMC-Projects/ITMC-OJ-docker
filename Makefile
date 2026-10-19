@@ -14,7 +14,7 @@ help:
 	$(info )
 	$(info Linux production:)
 	$(info   make prod-init       Create missing environment files and secrets)
-	$(info   make prod            Validate, build, migrate, collect static and start)
+	$(info   make prod            Validate, build, migrate, initialize data and start)
 	$(info   make prod-build      Build production images)
 	$(info   make prod-up         Start/recreate without building)
 	$(info   make prod-down       Stop services, preserve data)

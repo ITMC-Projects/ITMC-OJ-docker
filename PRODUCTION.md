@@ -64,16 +64,24 @@ make prod-logs SERVICE=site
 ```
 
 `make prod` validate env/Compose, build base trước application images, chờ DB/Redis
-healthy, migrate, build CSS/static/translations, start/recreate và chạy deployment checks.
+healthy, migrate, bổ sung languages còn thiếu, khởi tạo navbar nếu bảng đang rỗng,
+build CSS/static/translations, start/recreate và chạy deployment checks.
 Base là build-only profile, không chạy một container Python thừa. Source được COPY
 vào image production; image dùng prefix riêng, không đổi tag image dev. Bản dịch .mo
 được compile trong image, CSS/static được build vào volume assets. Dev vẫn dùng
-PowerShell và source bind như cũ. Lần đầu cần tạo admin/fixtures rõ ràng, không tự seed:
+PowerShell và source bind như cũ. Bootstrap dùng `get_or_create` theo language key,
+không dùng primary key của fixture và không cập nhật bản ghi đã tồn tại. Navbar đã
+có dữ liệu được giữ nguyên; navbar mới được MPTT tính cây và liên kết parent theo
+ID thực tế. Toàn bộ bước bootstrap chạy trong một transaction, có thể chạy lại an toàn.
+Nếu DEFAULT_USER_LANGUAGE tùy chỉnh chưa tồn tại và không có trong language_small,
+deployment dừng với lỗi rõ ràng trước khi ghi dữ liệu. `prod-check` cũng kiểm tra
+ngôn ngữ mặc định để phát hiện lỗi trang đăng ký trước khi báo deploy thành công.
+Script bootstrap nằm trong production, được mount read-only vào container chạy một
+lần; không sửa source submodule. `prod-up` vẫn chỉ khởi động/recreate service.
+Tài khoản admin được tạo tương tác một lần để tự chọn thông tin đăng nhập:
 
 ```bash
 docker compose -p itmc-oj-prod --env-file dmoj/production/env/prod.env -f dmoj/docker-compose.yml -f dmoj/docker-compose.prod.yml exec site python3 manage.py createsuperuser
-# Chỉ khi cài mới và thực sự cần navbar/language fixtures:
-docker compose -p itmc-oj-prod --env-file dmoj/production/env/prod.env -f dmoj/docker-compose.yml -f dmoj/docker-compose.prod.yml exec site python3 manage.py loaddata navbar language_small
 ```
 
 ## Config mapping và dữ liệu

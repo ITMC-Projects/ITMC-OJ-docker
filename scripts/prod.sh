@@ -45,17 +45,23 @@ validate() {
   command -v python3 >/dev/null || die 'Python 3 is required for validation'
   python3 "$P/validate.py" "$P"
   [[ -f dmoj/repo/manage.py ]] || die 'Initialize source: git submodule update --init --recursive'
+  [[ -f "$P/bootstrap.py" ]] || die 'Missing production/bootstrap.py; update the complete deployment checkout'
   dc config --quiet
 }
 infra() { dc up -d --wait --wait-timeout 240 db redis; }
 build() { dc build base; dc build site celery bridged wsevent; }
 migrate() { infra; dc run --rm --no-deps --entrypoint python3 site manage.py migrate --noinput; }
+bootstrap() {
+  dc run --rm --no-deps --volume "$P/bootstrap.py:/production-bootstrap.py:ro" \
+    --entrypoint python3 site /production-bootstrap.py "$@"
+}
 static() {
   # Source is read-only. Build translations/CSS in a throwaway copy, never in submodule.
   dc run --rm --no-deps --entrypoint bash site -c 'set -e; mkdir /tmp/site; cp -a /site/. /tmp/site/; cd /tmp/site; sed -i "s/\r$//" make_style.sh; bash make_style.sh; python3 manage.py collectstatic --noinput; python3 manage.py compilemessages; python3 manage.py compilejsi18n; cp -r resources /assets/; cp 502.html logo.png robots.txt /assets/'
 }
 up() { dc up -d --no-build --force-recreate --wait --wait-timeout 240 site celery beat bridged wsevent nginx; }
 check() {
+  bootstrap --check
   dc run --rm --no-deps --entrypoint python3 site manage.py check --deploy --fail-level WARNING
   dc exec -T nginx nginx -t
   dc exec -T site python3 manage.py migrate --check
@@ -99,7 +105,7 @@ restore() {
 if [[ "$TASK" == prod-init ]]; then init; exit; fi
 validate
 case "$TASK" in
-  prod) build; migrate; static; up; check;;
+  prod) build; migrate; bootstrap; static; up; check;;
   prod-build) build;;
   prod-up|prod-restart) up;;
   prod-down) dc down;;
