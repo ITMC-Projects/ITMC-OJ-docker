@@ -1,0 +1,3 @@
+scripts/prod.sh text eol=lf
+dmoj/production/** text eol=lf
+dmoj/docker-compose.prod.yml text eol=lf

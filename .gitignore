@@ -4,3 +4,8 @@ dmoj/media/
 dmoj/problems/
 dmoj/environment/*.env
 .env
+dmoj/production/env/*.env
+dmoj/production/data/*
+!dmoj/production/data/.gitkeep
+__pycache__/
+**/__pycache__

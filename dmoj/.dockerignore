@@ -1,0 +1,11 @@
+production/env/*.env
+production/data
+database
+media
+problems
+repo/.git
+environment/*.env
+repo/dmoj/local_settings.py
+repo/websocket/config.js
+repo/uwsgi.ini
+repo/**/__pycache__

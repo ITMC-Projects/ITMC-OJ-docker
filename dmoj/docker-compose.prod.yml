@@ -1,0 +1,172 @@
+x-logging: &logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "5"}
+x-ready: &ready
+  db: {condition: service_healthy}
+  redis: {condition: service_healthy}
+services:
+  base:
+    image: itmc-oj-prod/base:local
+    profiles: [build]
+  db:
+    container_name: itmc-oj-prod-db
+    restart: unless-stopped
+    logging: *logging
+    image: mariadb:11.4
+    env_file: !override [production/env/mysql.env, production/env/mysql-admin.env]
+    volumes: !override [prod_database:/var/lib/mysql]
+    healthcheck:
+      test: [CMD, env, MYSQL_HOST=localhost, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+  redis:
+    container_name: itmc-oj-prod-redis
+    restart: unless-stopped
+    logging: *logging
+    image: redis:7.4-alpine
+    command: [redis-server, --appendonly, "yes"]
+    volumes: [prod_redis:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  site:
+    container_name: itmc-oj-prod-site
+    restart: unless-stopped
+    logging: *logging
+    image: itmc-oj-prod/site:local
+    env_file: !override [production/env/mysql.env, production/env/site.env]
+    depends_on: !override
+      <<: *ready
+    volumes: !override
+      - ./production/config/django/local_settings.py:/site/dmoj/local_settings.py:ro
+      - ./production/data/media:/media
+      - ./production/data/problems:/problems
+      - userdatacache:/userdatacache
+      - contestdatacache:/contestdatacache
+      - cache:/cache
+      - assets:/assets
+      - ./production/config/uwsgi.ini:/site/uwsgi.ini:ro
+    build: !override
+      context: .
+      dockerfile: production/docker/site.Dockerfile
+    entrypoint: [uwsgi, --ini, /site/uwsgi.ini]
+    healthcheck:
+      test: [CMD, python3, -c, "import socket; socket.create_connection(('127.0.0.1',8000),3).close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  celery:
+    container_name: itmc-oj-prod-celery
+    stop_grace_period: 120s
+    restart: unless-stopped
+    logging: *logging
+    image: itmc-oj-prod/celery:local
+    env_file: !override [production/env/mysql.env, production/env/site.env]
+    depends_on: !override
+      <<: *ready
+    volumes: !override
+      - ./production/config/django/local_settings.py:/site/dmoj/local_settings.py:ro
+      - ./production/data/media:/media
+      - ./production/data/problems:/problems
+      - userdatacache:/userdatacache
+      - contestdatacache:/contestdatacache
+      - cache:/cache
+    build: !override
+      context: .
+      dockerfile: production/docker/celery.Dockerfile
+    healthcheck:
+      test: [CMD-SHELL, 'celery -A dmoj_celery inspect ping -d "celery@$$HOSTNAME" --timeout 5 | grep -q pong']
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  beat:
+    container_name: itmc-oj-prod-beat
+    restart: unless-stopped
+    logging: *logging
+    image: itmc-oj-prod/celery:local
+    env_file: !override [production/env/mysql.env, production/env/site.env]
+    depends_on: !override
+      <<: *ready
+    volumes: !override
+      - ./production/config/django/local_settings.py:/site/dmoj/local_settings.py:ro
+      - ./production/data/media:/media
+      - ./production/data/problems:/problems
+      - userdatacache:/userdatacache
+      - contestdatacache:/contestdatacache
+      - cache:/cache
+      - prod_beat:/beat
+    scale: 1
+    entrypoint: [celery, -A, dmoj_celery, beat, -l, info, --schedule, /beat/celerybeat-schedule, --pidfile, /tmp/celerybeat.pid]
+
+  bridged:
+    container_name: itmc-oj-prod-bridged
+    restart: unless-stopped
+    logging: *logging
+    image: itmc-oj-prod/bridged:local
+    env_file: !override [production/env/mysql.env, production/env/site.env]
+    depends_on: !override
+      <<: *ready
+    volumes: !override
+      - ./production/config/django/local_settings.py:/site/dmoj/local_settings.py:ro
+      - ./production/data/media:/media
+      - ./production/data/problems:/problems
+      - userdatacache:/userdatacache
+      - contestdatacache:/contestdatacache
+      - cache:/cache
+    build: !override
+      context: .
+      dockerfile: production/docker/bridged.Dockerfile
+    ports: !override ["${JUDGE_BIND_IP:-127.0.0.1}:9999:9999"]
+    healthcheck:
+      test: [CMD, python3, -c, "import socket; socket.create_connection(('bridged',9998),3).close()"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+  wsevent:
+    container_name: itmc-oj-prod-wsevent
+    restart: unless-stopped
+    logging: *logging
+    image: itmc-oj-prod/wsevent:local
+    build: !override
+      context: .
+      dockerfile: production/docker/wsevent.Dockerfile
+    env_file: !override [production/env/site.env]
+    depends_on: !override {}
+    volumes: !override
+      - ./production/config/websocket/config.js:/app/site/websocket/config.js:ro
+    healthcheck:
+      test: [CMD, node, -e, "const s=require('net').connect(15102,'127.0.0.1');s.on('connect',()=>{s.end();process.exit(0)});s.on('error',()=>process.exit(1));setTimeout(()=>process.exit(1),3000)"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+  nginx:
+    container_name: itmc-oj-prod-nginx
+    restart: unless-stopped
+    logging: *logging
+    image: nginx:1.28-alpine
+    ports: !override ["127.0.0.1:10080:80"]
+    volumes: !override
+      - assets:/assets:ro
+      - userdatacache:/userdatacache:ro
+      - contestdatacache:/contestdatacache:ro
+      - cache:/cache:ro
+      - ./production/data/media:/media:ro
+      - ./production/config/nginx/nginx.conf:/etc/nginx/conf.d/nginx.conf:ro
+      - ./production/config/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on: !override
+      site: {condition: service_healthy}
+      wsevent: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, http://127.0.0.1/healthz]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+volumes:
+  prod_database:
+  prod_redis:
+  prod_beat:
