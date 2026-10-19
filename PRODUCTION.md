@@ -232,7 +232,8 @@ build lại không tạo ra image giống hệt trước đó.
   CSRF hoặc redirect: kiểm tra HTTPS URL, Host, trusted origins và proxy headers.
 * WSS lỗi: kiểm tra Upgrade/Connection và timeout ở cả hai proxy. Judge offline:
   kiểm tra VPN bind IP/firewall, judge ID/key, bridge log và problem data phía judge.
-* Permission media: init đặt public directory 755, file upload 644. Env/backups giữ
+* Permission media/problems: init đặt bind root media/problems 755 để Nginx/judge đọc
+  được, file upload 644. Không chmod đệ quy dữ liệu con. Env/backups giữ
   private. Không chmod 777. Kiểm tra dung lượng Docker/backup khi ghi file lỗi.
 * OTS lỗi: kiểm tra HTTPS certificate/DNS/token giống phía OTS, xem admin sync run
   và worker/beat logs; không log service token. Quy trình recover interrupted sync

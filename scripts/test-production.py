@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -64,6 +65,12 @@ class ProductionTests(unittest.TestCase):
         secrets = [values[k] for k in ('SECRET_KEY', 'MYSQL_PASSWORD', 'MYSQL_ROOT_PASSWORD', 'OTS_SYNC_SERVICE_TOKEN')]
         self.assertEqual(len(set(secrets)), 4)
         self.assertTrue(all(len(s) == 128 for s in secrets))
+        if os.name != 'nt':
+            problems = self.p / 'data/problems'
+            problems.chmod(0o700)
+            self.init()
+            self.assertEqual(stat.S_IMODE(problems.stat().st_mode), 0o755)
+            self.assertEqual(stat.S_IMODE((self.p / 'env/site.env').stat().st_mode), 0o600)
 
     def test_env_rejects_placeholder_missing_and_weak_secrets(self):
         with self.assertRaisesRegex(ValueError, 'HOST'):

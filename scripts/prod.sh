@@ -36,8 +36,9 @@ init() {
       fi
     fi
   done
-  # Nginx must traverse/read public media while backups and env remain private.
-  chmod 755 "$P/data" "$P/data/media"
+  # Nginx and the unprivileged external judge need read/traverse on bind roots.
+  # Change only these roots; secrets, backups and nested data keep their modes.
+  chmod 755 "$P/data" "$P/data/media" "$P/data/problems"
   echo 'Initialized missing environment files. Set domains and OTS endpoint; share the generated OTS token with OTS before deploying.'
 }
 validate() {
